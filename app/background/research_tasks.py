@@ -204,25 +204,32 @@ async def _run_generate_report_task(
     """
 
     try:
+        # 将后台任务标记为"执行中"
         await research_task_repository.mark_task_running(
             task_id=task_id,
             message="正在执行研究并生成报告",
         )
+        # 将项目状态更新为"研究中"
         await research_project_repository.update_project_status(
             project_id=project_id,
             status=ProjectStatus.RESEARCH_RUNNING,
         )
         logger.info("开始执行研究和报告渲染，project_id={}，task_id={}", project_id, task_id)
 
+        # 从 MongoDB 读取项目文档
         project = await research_project_repository.get_project(project_id=project_id)
+        # 读取用户已确认的研究大纲
         outline = await research_project_repository.get_confirmed_outline(project_id=project_id)
+        # 获取 DeepAgents 研究智能体单例
         research_agent = get_research_agent()
 
+        # Agent 研究：ManagerAgent 协调 SearchAgent 搜索+检索，撰写章节正文并逐章落库
         research_result = await research_agent.generate_research_result(
             project=project,
             outline=outline,
             user_instruction=user_instruction,
         )
+        # 将研究结果（所有章节）持久化到 MongoDB
         await research_project_repository.save_research_result(
             project_id=project_id,
             research_result=research_result,
@@ -234,30 +241,36 @@ async def _run_generate_report_task(
             len(research_result.sections),
         )
 
+        # 重新读取项目，获取刚写入的 research_result
         project_with_research_result = await research_project_repository.get_project(
             project_id=project_id
         )
+        # 确定性渲染：纯 Python 将研究结果转为 HTML，不调 LLM
         result = await research_agent.generate_report(
             project=project_with_research_result,
             outline=outline,
             user_instruction=user_instruction,
         )
+        # 保存报告版本（HTML + 来源列表）
         await report_repository.save_report_version(
             project_id=project_id,
             title=result.title,
             html=result.html,
             sources=result.sources,
         )
+        # 项目状态更新为"报告就绪"
         await research_project_repository.update_project_status(
             project_id=project_id,
             status=ProjectStatus.REPORT_READY,
         )
+        # 后台任务标记为"成功"
         await research_task_repository.mark_task_succeeded(
             task_id=task_id,
             message="研究报告已生成",
         )
         logger.info("研究和报告渲染完成，project_id={}，task_id={}", project_id, task_id)
     except Exception as exc:
+        # 异常路径：项目置为 FAILED，任务标记失败并记录错误日志
         await _mark_task_failed(
             project_id=project_id,
             task_id=task_id,
