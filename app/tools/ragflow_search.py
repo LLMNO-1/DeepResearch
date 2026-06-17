@@ -18,6 +18,7 @@ async def ragflow_search(
     similarity_threshold: float = 0.2,
     vector_similarity_weight: float = 0.3,
     top_k: int = 1024,
+    #也能混合检索，q的改写，拿增强后的q去检索提高命中率
     keyword: bool = False,
 ) -> dict[str, Any]:
     """检索 RAGFlow 内部知识库。
@@ -137,3 +138,41 @@ def _normalize_chunk(item: dict[str, Any]) -> dict[str, Any]:
         "metadata": item.get("metadata") or {},
         "source_type": "internal_knowledge_base",
     }
+
+"""
+{
+    "code": 0,
+    "data": {
+        "chunks": [
+            {
+                "content": "ragflow content",
+                "content_ltks": "ragflow content",
+                "document_id": "5c5999ec7be811ef9cab0242ac120005",
+                "document_keyword": "1.txt",
+                "highlight": "<em>ragflow</em> content",
+                "id": "d78435d142bd5cf6704da62c778795c5",
+                "image_id": "",
+                "important_keywords": [
+                    ""
+                ],
+                "tag_kwd": [],
+                "kb_id": "c7ee74067a2c11efb21c0242ac120006",
+                "positions": [
+                    ""
+                ],
+                "similarity": 0.9669436601210759,
+                "term_similarity": 1.0,
+                "vector_similarity": 0.8898122004035864
+            }
+        ],
+        "doc_aggs": [
+            {
+                "count": 1,
+                "doc_id": "5c5999ec7be811ef9cab0242ac120005",
+                "doc_name": "1.txt"
+            }
+        ],
+        "total": 1
+    }
+}
+"""
